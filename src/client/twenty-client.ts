@@ -353,12 +353,21 @@ export class TwentyClient {
   }
 
   async createTask(task: Task): Promise<Task> {
+    // Twenty renamed the plain-text `body` field to rich-text `bodyV2` on
+    // Task/Note input types. Translate callers' `body: string` into the
+    // expected RichTextCreateInput shape.
+    const { body, ...rest } = task;
+    const data: Record<string, unknown> = { ...rest };
+    if (body !== undefined) {
+      data.bodyV2 = { markdown: body };
+    }
+
     const mutation = `
       mutation CreateTask($data: TaskCreateInput!) {
         createTask(data: $data) {
           id
           title
-          body
+          bodyV2 { markdown }
           dueAt
           status
           assigneeId
@@ -366,8 +375,11 @@ export class TwentyClient {
       }
     `;
 
-    const result = await this.client.request(mutation, { data: task }) as { createTask: Task };
-    return result.createTask;
+    const result = await this.client.request(mutation, { data }) as {
+      createTask: Task & { bodyV2?: { markdown?: string } };
+    };
+    const { bodyV2, ...created } = result.createTask;
+    return { ...created, body: bodyV2?.markdown };
   }
 
   async getTasks(options: SearchOptions = {}): Promise<Task[]> {
@@ -392,19 +404,28 @@ export class TwentyClient {
   }
 
   async createNote(note: Note): Promise<Note> {
+    // Twenty's NoteCreateInput uses bodyV2 (RichTextCreateInput), not body.
+    const { body, ...rest } = note;
+    const data: Record<string, unknown> = { ...rest };
+    if (body !== undefined) {
+      data.bodyV2 = { markdown: body };
+    }
+
     const mutation = `
       mutation CreateNote($data: NoteCreateInput!) {
         createNote(data: $data) {
           id
           title
-          body
-          authorId
+          bodyV2 { markdown }
         }
       }
     `;
 
-    const result = await this.client.request(mutation, { data: note }) as { createNote: Note };
-    return result.createNote;
+    const result = await this.client.request(mutation, { data }) as {
+      createNote: Note & { bodyV2?: { markdown?: string }; authorId?: string };
+    };
+    const { bodyV2, ...created } = result.createNote;
+    return { ...created, body: bodyV2?.markdown ?? '' };
   }
 
   async createOpportunity(opportunity: CreateOpportunityInput): Promise<Opportunity> {
@@ -485,9 +506,10 @@ export class TwentyClient {
   }
 
   async searchOpportunities(input: SearchOpportunitiesInput): Promise<Opportunity[]> {
+    // Twenty's opportunities query accepts offset (not skip).
     const query = `
-      query SearchOpportunities($filter: OpportunityFilterInput, $first: Int, $skip: Int) {
-        opportunities(filter: $filter, first: $first, skip: $skip) {
+      query SearchOpportunities($filter: OpportunityFilterInput, $first: Int, $offset: Int) {
+        opportunities(filter: $filter, first: $first, offset: $offset) {
           edges {
             node {
               id
@@ -537,7 +559,7 @@ export class TwentyClient {
     const result = await this.client.request(query, {
       filter: Object.keys(filters).length > 0 ? filters : undefined,
       first: input.limit || 20,
-      skip: input.offset || 0,
+      offset: input.offset || 0,
     }) as { opportunities: { edges: { node: Opportunity }[] } };
 
     return result.opportunities.edges.map(edge => edge.node);
