@@ -1,0 +1,43 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Sync from the Render dashboard: New -> Blueprint -> point at this repo.
+# After the first deploy, set the `sync: false` env vars in the dashboard
+# (the Blueprint intentionally carries no secrets).
+
+services:
+  - type: web
+    name: twenty-mcp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: REQUIRE_AUTH
+        value: "true"
+      - key: AUTH_PROVIDER
+        value: clerk
+      - key: PORT
+        value: "3000"
+      - key: TWENTY_BASE_URL
+        value: https://api.twenty.com
+      - key: IP_PROTECTION_ENABLED
+        value: "false"
+      - key: NODE_ENV
+        value: production
+
+      - key: API_KEY_ENCRYPTION_SECRET
+        generateValue: true
+
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_DOMAIN
+        sync: false
+      - key: MCP_SERVER_URL
+        sync: false
+      - key: TWENTY_API_KEY
+        sync: false
