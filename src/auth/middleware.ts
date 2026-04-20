@@ -63,12 +63,17 @@ export class AuthMiddleware {
   }
   
   private sendUnauthorized(res: ServerResponse, message: string): void {
+    // Advertise the protected resource metadata URL so MCP clients can discover
+    // the authorization server without needing the bare path (RFC 9728).
+    const serverUrl = process.env.MCP_SERVER_URL || 'http://localhost:3000';
+    const resourceMetadata = `${serverUrl}/.well-known/oauth-protected-resource/mcp`;
     res.writeHead(401, {
       'Content-Type': 'application/json',
-      'WWW-Authenticate': 'Bearer realm="Twenty MCP Server"',
+      'WWW-Authenticate': `Bearer realm="Twenty MCP Server", resource_metadata="${resourceMetadata}"`,
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version, Last-Event-ID',
+      'Access-Control-Expose-Headers': 'WWW-Authenticate',
     });
     res.end(JSON.stringify({
       error: 'unauthorized',
