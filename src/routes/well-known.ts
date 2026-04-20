@@ -61,8 +61,9 @@ export class WellKnownRoutes {
   async handleOptions(req: IncomingMessage, res: ServerResponse): Promise<void> {
     res.writeHead(200, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version, Last-Event-ID',
+      'Access-Control-Expose-Headers': 'Mcp-Session-Id',
       'Access-Control-Max-Age': '86400',
     });
     res.end();
