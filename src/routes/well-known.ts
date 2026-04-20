@@ -20,7 +20,7 @@ export class WellKnownRoutes {
       bearer_methods_supported: ['header'],
       resource_documentation: 'https://github.com/jezweb/twenty-mcp',
       resource_signing_alg_values_supported: ['RS256'],
-      scopes_supported: ['twenty:read', 'twenty:write'],
+      scopes_supported: ['openid', 'profile', 'email'],
     };
     
     res.writeHead(200, {
@@ -41,7 +41,7 @@ export class WellKnownRoutes {
       token_endpoint: `https://${this.clerkDomain}/oauth/token`,
       jwks_uri: `https://${this.clerkDomain}/.well-known/jwks.json`,
       registration_endpoint: `https://${this.clerkDomain}/oauth/register`,
-      scopes_supported: ['openid', 'profile', 'email', 'twenty:read', 'twenty:write'],
+      scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
       response_types_supported: ['code'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
       code_challenge_methods_supported: ['S256'],
