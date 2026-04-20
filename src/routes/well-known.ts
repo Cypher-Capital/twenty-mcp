@@ -10,9 +10,12 @@ export class WellKnownRoutes {
   }
   
   async handleProtectedResource(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    // RFC 9728 - OAuth 2.0 Protected Resource Metadata
+    // RFC 9728 - OAuth 2.0 Protected Resource Metadata.
+    // Clients may request the bare path or the per-resource path (e.g. /mcp).
+    // Describe the /mcp resource in both cases since it's the only protected resource we expose.
+    const resource = `${this.serverUrl}/mcp`;
     const metadata = {
-      resource: this.serverUrl,
+      resource,
       authorization_servers: [`https://${this.clerkDomain}`],
       bearer_methods_supported: ['header'],
       resource_documentation: 'https://github.com/jezweb/twenty-mcp',
