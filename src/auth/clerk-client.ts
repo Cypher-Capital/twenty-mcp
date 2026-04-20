@@ -47,36 +47,64 @@ export class ClerkClient {
     if (!this.enabled) {
       return { valid: false, error: 'Authentication is not enabled' };
     }
-    
+
     try {
-      // Remove 'Bearer ' prefix if present
       const cleanToken = token.replace(/^Bearer\s+/i, '');
-      
-      // Verify the session using the session ID from the token
-      // First, we need to decode the JWT to get the session ID
+
+      // Path 1: Clerk session JWT — three-part JWT with a `sid` claim pointing
+      // at an active Clerk session. This is the shape Clerk's frontend SDKs issue.
       const tokenParts = cleanToken.split('.');
-      if (tokenParts.length !== 3) {
-        return { valid: false, error: 'Invalid token format' };
+      if (tokenParts.length === 3) {
+        try {
+          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64url').toString());
+          if (payload.sid) {
+            const session = await this.clerk.sessions.getSession(payload.sid);
+            if (!session || session.status !== 'active') {
+              return { valid: false, error: 'Invalid or inactive session' };
+            }
+            return {
+              valid: true,
+              userId: session.userId,
+              sessionId: session.id,
+            };
+          }
+        } catch {
+          // Not a Clerk session JWT; fall through to OAuth validation.
+        }
       }
-      
-      // Decode the payload (base64url decode)
-      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64url').toString());
-      
-      if (!payload.sid) {
-        return { valid: false, error: 'No session ID in token' };
+
+      // Path 2: OAuth 2.0 access token (issued to third-party clients via
+      // authorization_code grant, e.g. claude.ai's MCP connector). These are
+      // not Clerk sessions; validate by calling Clerk's userinfo endpoint.
+      const clerkDomain = process.env.CLERK_DOMAIN;
+      if (!clerkDomain) {
+        return { valid: false, error: 'CLERK_DOMAIN not configured' };
       }
-      
-      // Verify the session exists and is active
-      const session = await this.clerk.sessions.getSession(payload.sid);
-      
-      if (!session || session.status !== 'active') {
-        return { valid: false, error: 'Invalid or inactive session' };
+
+      const userinfoResponse = await fetch(`https://${clerkDomain}/oauth/userinfo`, {
+        headers: { Authorization: `Bearer ${cleanToken}` },
+      });
+
+      if (!userinfoResponse.ok) {
+        return {
+          valid: false,
+          error: `OAuth token rejected by Clerk (HTTP ${userinfoResponse.status})`,
+        };
       }
-      
+
+      const userInfo = (await userinfoResponse.json()) as {
+        user_id?: string;
+        sub?: string;
+      };
+      const userId = userInfo.user_id || userInfo.sub;
+      if (!userId) {
+        return { valid: false, error: 'No user ID in OAuth userinfo response' };
+      }
+
       return {
         valid: true,
-        userId: session.userId,
-        sessionId: session.id,
+        userId,
+        sessionId: 'oauth-access-token',
       };
     } catch (error) {
       console.error('Token validation error:', error);
