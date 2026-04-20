@@ -34,10 +34,11 @@ This MCP server transforms your Twenty CRM instance into a powerful tool accessi
 - **✅ Task Management**: Create and manage tasks
 - **🔗 Relationship Management**: Link entities and analyze connections
 - **🔍 Metadata Discovery**: Explore CRM schema and field definitions
+- **🌐 Record URLs**: Every record-returning tool emits the Twenty UI URL so you can open results directly in the browser (plus a `get_record_url` tool for ad-hoc URL lookups)
 - **🔐 OAuth 2.1 Authentication**: Secure user-specific API key management
 - **🔒 Full TypeScript Support**: Type-safe operations with validation
 
-**Total: 29 MCP Tools** providing comprehensive CRM automation capabilities. [See full tool list →](TOOLS.md)
+**Total: 31 MCP Tools** providing comprehensive CRM automation capabilities. [See full tool list →](TOOLS.md)
 
 ## Understanding MCP Servers
 
@@ -371,10 +372,16 @@ TWENTY_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Your Twenty instance URL (no trailing slash!)
 TWENTY_BASE_URL=https://api.twenty.com
+
+# Optional: Twenty UI URL used when constructing record links (e.g.
+# https://app.twenty.com/object/company/<id>). If omitted, it is derived
+# from TWENTY_BASE_URL by replacing an `api.` host prefix with `app.`,
+# falling back to https://app.twenty.com.
+# TWENTY_WEB_URL=https://app.twenty.com
 ```
 
 **Common Base URLs:**
-- Twenty Cloud: `https://api.twenty.com`
+- Twenty Cloud: `https://api.twenty.com` (UI: `https://app.twenty.com`)
 - Self-hosted: `https://your-company.twenty.com`
 - Local development: `http://localhost:3000`
 

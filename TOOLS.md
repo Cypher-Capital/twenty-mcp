@@ -1,6 +1,6 @@
 # Twenty MCP Server - Tool Reference
 
-This document provides detailed information about all 29 tools available in the Twenty MCP Server.
+This document provides detailed information about all 31 tools available in the Twenty MCP Server.
 
 ## Table of Contents
 
@@ -12,6 +12,9 @@ This document provides detailed information about all 29 tools available in the 
 - [Note Management Tools](#note-management-tools)
 - [Relationship Management Tools](#relationship-management-tools)
 - [Metadata Discovery Tools](#metadata-discovery-tools)
+- [URL Tools](#url-tools)
+
+**Record URLs:** every tool that returns a record (or a list of records) also includes the Twenty UI URL for that record (`<webUrl>/object/<singular>/<id>`). The UI host is taken from `TWENTY_WEB_URL`, or derived from `TWENTY_BASE_URL` (e.g. `api.twenty.com` → `app.twenty.com`).
 
 ## Contact Management Tools
 
@@ -301,6 +304,24 @@ Gets metadata for specific fields of an object.
 - `fieldNames` (array, optional): Specific fields to query
 
 **Returns:** Detailed field metadata including types, constraints, and descriptions
+
+## URL Tools
+
+### get_record_url
+Builds the Twenty UI URL for a record from its entity type and ID. Pure URL construction — no network call.
+
+**Parameters:**
+- `entityType` (string, required): One of `company`, `person`, `opportunity`, `task`, `note`
+- `id` (string, required): Record UUID
+
+**Returns:** A string URL like `https://app.twenty.com/object/company/<id>`
+
+### get_twenty_web_url
+Returns the currently configured Twenty UI base URL (no record path). Useful for verifying that `TWENTY_WEB_URL` is resolving to what you expect.
+
+**Parameters:** None
+
+**Returns:** The configured web base URL (e.g. `https://app.twenty.com`)
 
 ## Usage Examples
 

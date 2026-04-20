@@ -34,13 +34,14 @@ export function registerOpportunityTools(server: McpServer, client: TwentyClient
         if (pointOfContactId) opportunityData.pointOfContactId = pointOfContactId;
         
         const opportunity = await client.createOpportunity(opportunityData);
-        
+        const url = opportunity.id ? client.getRecordUrl('opportunity', opportunity.id) : '';
+
         return {
           content: [{
             type: 'text',
-            text: `Created opportunity: ${opportunity.name} (ID: ${opportunity.id})`
+            text: `Created opportunity: ${opportunity.name} (ID: ${opportunity.id})${url ? `\nURL: ${url}` : ''}`
           }],
-          data: opportunity
+          data: url ? { ...opportunity, url } : opportunity
         };
       } catch (error: any) {
         return {
@@ -74,10 +75,12 @@ export function registerOpportunityTools(server: McpServer, client: TwentyClient
           };
         }
         
-        const amountStr = opportunity.amount 
+        const amountStr = opportunity.amount
           ? `${opportunity.amount.currencyCode} ${(opportunity.amount.amountMicros / 1000000).toFixed(2)}`
           : 'Not specified';
-        
+
+        const url = client.getRecordUrl('opportunity', id);
+
         return {
           content: [{
             type: 'text',
@@ -86,9 +89,10 @@ Amount: ${amountStr}
 Stage: ${opportunity.stage || 'Not specified'}
 Close Date: ${opportunity.closeDate || 'Not specified'}
 Company ID: ${opportunity.companyId || 'None'}
-Contact ID: ${opportunity.pointOfContactId || 'None'}`
+Contact ID: ${opportunity.pointOfContactId || 'None'}
+URL: ${url}`
           }],
-          data: opportunity
+          data: { ...opportunity, url }
         };
       } catch (error: any) {
         return {
@@ -137,13 +141,15 @@ Contact ID: ${opportunity.pointOfContactId || 'None'}`
           id: input.id,
           ...updateData
         });
-        
+
+        const url = client.getRecordUrl('opportunity', input.id);
+
         return {
           content: [{
             type: 'text',
-            text: `Updated opportunity: ${opportunity.name} (ID: ${opportunity.id})`
+            text: `Updated opportunity: ${opportunity.name} (ID: ${opportunity.id})\nURL: ${url}`
           }],
-          data: opportunity
+          data: { ...opportunity, url }
         };
       } catch (error: any) {
         return {
@@ -186,18 +192,23 @@ Contact ID: ${opportunity.pointOfContactId || 'None'}`
         }
         
         const opportunityList = opportunities.map(opp => {
-          const amount = opp.amount 
+          const amount = opp.amount
             ? `${opp.amount.currencyCode} ${(opp.amount.amountMicros / 1000000).toFixed(2)}`
             : 'N/A';
-          return `- ${opp.name} (${opp.stage || 'No stage'}) - ${amount}`;
+          const url = opp.id ? client.getRecordUrl('opportunity', opp.id) : '';
+          return `- ${opp.name} (${opp.stage || 'No stage'}) - ${amount}${url ? `\n    ${url}` : ''}`;
         }).join('\n');
-        
+
+        const withUrls = opportunities.map((opp) =>
+          opp.id ? { ...opp, url: client.getRecordUrl('opportunity', opp.id) } : opp
+        );
+
         return {
           content: [{
             type: 'text',
             text: `Found ${opportunities.length} opportunities:\n${opportunityList}`
           }],
-          data: opportunities
+          data: withUrls
         };
       } catch (error: any) {
         return {
@@ -231,10 +242,11 @@ Contact ID: ${opportunity.pointOfContactId || 'None'}`
           output += `${stage} (${opportunities.length} opportunities, $${stageValue.toFixed(2)}):\n`;
           
           opportunities.forEach(opp => {
-            const amount = opp.amount 
+            const amount = opp.amount
               ? `$${(opp.amount.amountMicros / 1000000).toFixed(2)}`
               : 'No amount';
-            output += `  - ${opp.name}: ${amount}\n`;
+            const url = opp.id ? client.getRecordUrl('opportunity', opp.id) : '';
+            output += `  - ${opp.name}: ${amount}${url ? ` → ${url}` : ''}\n`;
           });
           
           output += '\n';

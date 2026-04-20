@@ -18,15 +18,47 @@ import {
 export class TwentyClient {
   private client: GraphQLClient;
   private baseUrl: string;
+  private webUrl: string;
 
   constructor(config: TwentyConfig) {
     this.baseUrl = config.baseUrl || 'https://api.twenty.com';
+    this.webUrl = TwentyClient.resolveWebUrl(config.webUrl, this.baseUrl);
     this.client = new GraphQLClient(`${this.baseUrl}/graphql`, {
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
       },
     });
+  }
+
+  // Resolve the Twenty UI host. Explicit config wins; otherwise derive
+  // from the API baseUrl (api.twenty.com → app.twenty.com; self-hosted
+  // setups fall through to using the API host as-is).
+  private static resolveWebUrl(webUrl: string | undefined, baseUrl: string): string {
+    if (webUrl) return webUrl.replace(/\/+$/, '');
+
+    try {
+      const u = new URL(baseUrl);
+      if (u.hostname.startsWith('api.')) {
+        u.hostname = 'app.' + u.hostname.slice(4);
+      }
+      u.pathname = '';
+      u.search = '';
+      u.hash = '';
+      return u.toString().replace(/\/+$/, '');
+    } catch {
+      return 'https://app.twenty.com';
+    }
+  }
+
+  getWebUrl(): string {
+    return this.webUrl;
+  }
+
+  // Build a Twenty UI URL for a record. `nameSingular` is Twenty's object
+  // name (e.g. 'company', 'person', 'opportunity', 'task', 'note').
+  getRecordUrl(nameSingular: string, id: string): string {
+    return `${this.webUrl}/object/${nameSingular}/${id}`;
   }
 
   async createPerson(person: Person): Promise<Person> {

@@ -48,10 +48,11 @@ export function registerPersonTools(server: McpServer, client: TwentyClient) {
       };
 
       const person = await client.createPerson(personData);
+      const url = person.id ? client.getRecordUrl('person', person.id) : '';
       return {
         content: [{
           type: 'text' as const,
-          text: `Contact created successfully: ${person.name.firstName} ${person.name.lastName} (ID: ${person.id})`
+          text: `Contact created successfully: ${person.name.firstName} ${person.name.lastName} (ID: ${person.id})${url ? `\nURL: ${url}` : ''}`
         }]
       };
     } catch (error) {
@@ -73,10 +74,11 @@ export function registerPersonTools(server: McpServer, client: TwentyClient) {
     async (args) => {
     try {
       const person = await client.getPerson(args.id);
+      const withUrl = person ? { ...person, url: client.getRecordUrl('person', args.id) } : person;
       return {
         content: [{
           type: 'text' as const,
-          text: JSON.stringify(person, null, 2)
+          text: JSON.stringify(withUrl, null, 2)
         }]
       };
     } catch (error) {
@@ -107,10 +109,11 @@ export function registerPersonTools(server: McpServer, client: TwentyClient) {
     try {
       const { id, ...updates } = args;
       const person = await client.updatePerson(id, updates);
+      const url = client.getRecordUrl('person', id);
       return {
         content: [{
           type: 'text' as const,
-          text: `Contact updated successfully: ${person.name.firstName} ${person.name.lastName}`
+          text: `Contact updated successfully: ${person.name.firstName} ${person.name.lastName}\nURL: ${url}`
         }]
       };
     } catch (error) {
@@ -137,10 +140,13 @@ export function registerPersonTools(server: McpServer, client: TwentyClient) {
         limit: args.limit,
         offset: args.offset,
       });
+      const withUrls = people.map((p) =>
+        p.id ? { ...p, url: client.getRecordUrl('person', p.id) } : p
+      );
       return {
         content: [{
           type: 'text' as const,
-          text: JSON.stringify(people, null, 2)
+          text: JSON.stringify(withUrls, null, 2)
         }]
       };
     } catch (error) {
@@ -204,10 +210,11 @@ export function registerCompanyTools(server: McpServer, client: TwentyClient) {
       };
 
       const company = await client.createCompany(companyData);
+      const url = company.id ? client.getRecordUrl('company', company.id) : '';
       return {
         content: [{
           type: 'text' as const,
-          text: `Company created successfully: ${company.name} (ID: ${company.id})`
+          text: `Company created successfully: ${company.name} (ID: ${company.id})${url ? `\nURL: ${url}` : ''}`
         }]
       };
     } catch (error) {
@@ -229,10 +236,11 @@ export function registerCompanyTools(server: McpServer, client: TwentyClient) {
     async (args) => {
     try {
       const company = await client.getCompany(args.id);
+      const withUrl = company ? { ...company, url: client.getRecordUrl('company', args.id) } : company;
       return {
         content: [{
           type: 'text' as const,
-          text: JSON.stringify(company, null, 2)
+          text: JSON.stringify(withUrl, null, 2)
         }]
       };
     } catch (error) {
@@ -297,10 +305,11 @@ export function registerCompanyTools(server: McpServer, client: TwentyClient) {
       };
 
       const company = await client.updateCompany(id, updates);
+      const url = client.getRecordUrl('company', id);
       return {
         content: [{
           type: 'text' as const,
-          text: `Company updated successfully: ${company.name}`
+          text: `Company updated successfully: ${company.name}\nURL: ${url}`
         }]
       };
     } catch (error) {
@@ -327,10 +336,13 @@ export function registerCompanyTools(server: McpServer, client: TwentyClient) {
         limit: args.limit,
         offset: args.offset,
       });
+      const withUrls = companies.map((c) =>
+        c.id ? { ...c, url: client.getRecordUrl('company', c.id) } : c
+      );
       return {
         content: [{
           type: 'text' as const,
-          text: JSON.stringify(companies, null, 2)
+          text: JSON.stringify(withUrls, null, 2)
         }]
       };
     } catch (error) {
@@ -358,10 +370,11 @@ export function registerTaskTools(server: McpServer, client: TwentyClient) {
     async (args) => {
     try {
       const task = await client.createTask(args);
+      const url = task.id ? client.getRecordUrl('task', task.id) : '';
       return {
         content: [{
           type: 'text' as const,
-          text: `Task created successfully: ${task.title} (ID: ${task.id})`
+          text: `Task created successfully: ${task.title} (ID: ${task.id})${url ? `\nURL: ${url}` : ''}`
         }]
       };
     } catch (error) {
@@ -387,10 +400,13 @@ export function registerTaskTools(server: McpServer, client: TwentyClient) {
         limit: args.limit,
         offset: args.offset,
       });
+      const withUrls = tasks.map((t) =>
+        t.id ? { ...t, url: client.getRecordUrl('task', t.id) } : t
+      );
       return {
         content: [{
           type: 'text' as const,
-          text: JSON.stringify(tasks, null, 2)
+          text: JSON.stringify(withUrls, null, 2)
         }]
       };
     } catch (error) {
@@ -414,10 +430,11 @@ export function registerTaskTools(server: McpServer, client: TwentyClient) {
     async (args) => {
     try {
       const note = await client.createNote(args);
+      const url = note.id ? client.getRecordUrl('note', note.id) : '';
       return {
         content: [{
           type: 'text' as const,
-          text: `Note created successfully: ${note.title || 'Untitled'} (ID: ${note.id})`
+          text: `Note created successfully: ${note.title || 'Untitled'} (ID: ${note.id})${url ? `\nURL: ${url}` : ''}`
         }]
       };
     } catch (error) {
@@ -442,19 +459,23 @@ export function registerRelationshipTools(server: McpServer, client: TwentyClien
       try {
         const result = await client.getCompanyContacts(args.companyId);
         
-        const contactsList = result.contacts.map(contact => 
+        const contactsList = result.contacts.map(contact =>
           `• ${contact.name.firstName} ${contact.name.lastName}` +
           (contact.jobTitle ? ` - ${contact.jobTitle}` : '') +
           (contact.email ? ` (${contact.email})` : '') +
           (contact.phone ? ` | Phone: ${contact.phone}` : '') +
-          `\n  ID: ${contact.id}`
+          `\n  ID: ${contact.id}` +
+          `\n  URL: ${client.getRecordUrl('person', contact.id)}`
         ).join('\n');
+
+        const companyUrl = client.getRecordUrl('company', result.companyId);
 
         return {
           content: [{
             type: 'text' as const,
             text: `Company Contacts for "${result.companyName}"\n` +
                   `Company ID: ${result.companyId}\n` +
+                  `Company URL: ${companyUrl}\n` +
                   `Total Contacts: ${result.totalContacts}\n\n` +
                   (result.totalContacts > 0 ? `Contacts:\n${contactsList}` : 'No contacts found for this company.')
           }]
@@ -490,14 +511,18 @@ export function registerRelationshipTools(server: McpServer, client: TwentyClien
           if (opp.company) oppText += ` | Company: ${opp.company.name}`;
           if (opp.closeDate) oppText += ` | Close: ${opp.closeDate}`;
           oppText += `\n  ID: ${opp.id}`;
+          oppText += `\n  URL: ${client.getRecordUrl('opportunity', opp.id)}`;
           return oppText;
         }).join('\n');
+
+        const personUrl = client.getRecordUrl('person', result.personId);
 
         return {
           content: [{
             type: 'text' as const,
             text: `Opportunities for "${result.personName}"\n` +
                   `Person ID: ${result.personId}\n` +
+                  `Person URL: ${personUrl}\n` +
                   `Total Opportunities: ${result.totalOpportunities}\n\n` +
                   (result.totalOpportunities > 0 ? `Opportunities:\n${opportunitiesList}` : 'No opportunities found for this person.')
           }]
@@ -541,16 +566,21 @@ export function registerRelationshipTools(server: McpServer, client: TwentyClien
         let relationshipInfo = '';
         if (result.company) {
           relationshipInfo += `Company: ${result.company.name} (${result.company.id})\n`;
+          relationshipInfo += `  URL: ${client.getRecordUrl('company', result.company.id)}\n`;
         }
         if (result.pointOfContact) {
           relationshipInfo += `Point of Contact: ${result.pointOfContact.name.firstName} ${result.pointOfContact.name.lastName} (${result.pointOfContact.id})\n`;
+          relationshipInfo += `  URL: ${client.getRecordUrl('person', result.pointOfContact.id)}\n`;
         }
+
+        const opportunityUrl = client.getRecordUrl('opportunity', result.id);
 
         return {
           content: [{
             type: 'text' as const,
             text: `Successfully linked opportunity "${result.name}"\n` +
-                  `Opportunity ID: ${result.id}\n\n` +
+                  `Opportunity ID: ${result.id}\n` +
+                  `Opportunity URL: ${opportunityUrl}\n\n` +
                   `Updated Relationships:\n${relationshipInfo}`
           }]
         };
@@ -581,12 +611,16 @@ export function registerRelationshipTools(server: McpServer, client: TwentyClien
           toCompanyId: args.toCompanyId
         });
 
+        const contactUrl = client.getRecordUrl('person', result.id);
+        const newCompanyUrl = result.companyId ? client.getRecordUrl('company', result.companyId) : '';
         return {
           content: [{
             type: 'text' as const,
             text: `Successfully transferred contact "${result.name.firstName} ${result.name.lastName}"\n` +
                   `Contact ID: ${result.id}\n` +
-                  `New Company: ${result.company?.name || 'Unknown'} (${result.companyId})`
+                  `Contact URL: ${contactUrl}\n` +
+                  `New Company: ${result.company?.name || 'Unknown'} (${result.companyId})` +
+                  (newCompanyUrl ? `\nCompany URL: ${newCompanyUrl}` : '')
           }]
         };
       } catch (error) {
@@ -689,6 +723,36 @@ export function registerRelationshipTools(server: McpServer, client: TwentyClien
         };
       }
     }
+  );
+}
+
+export function registerUrlTools(server: McpServer, client: TwentyClient) {
+  server.tool(
+    'get_record_url',
+    'Build the Twenty UI URL for a record given its entity type and ID. Use this to turn any ID returned by other tools into a link users can open in Twenty. Also use this for operations the MCP does not support (e.g. deletion, bulk edits, workflow changes) — return the URL so the user can complete the action in Twenty\'s UI via the record\'s ⋮ menu.',
+    {
+      entityType: z.enum(['company', 'person', 'opportunity', 'task', 'note'])
+        .describe('Twenty object type (singular form)'),
+      id: z.string().describe('Record ID (UUID)'),
+    },
+    async ({ entityType, id }) => ({
+      content: [{
+        type: 'text' as const,
+        text: client.getRecordUrl(entityType, id),
+      }],
+    })
+  );
+
+  server.tool(
+    'get_twenty_web_url',
+    'Return the configured Twenty UI base URL (without any record path). Useful for sanity-checking configuration.',
+    {},
+    async () => ({
+      content: [{
+        type: 'text' as const,
+        text: client.getWebUrl(),
+      }],
+    })
   );
 }
 

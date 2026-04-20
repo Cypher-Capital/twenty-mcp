@@ -18,6 +18,7 @@ interface SetupConfig {
   encryptionSecret?: string;
   twentyApiKey?: string;
   twentyBaseUrl?: string;
+  twentyWebUrl?: string;
   ipProtectionEnabled?: boolean;
   ipAllowlist?: string[];
   trustedProxies?: string[];
@@ -323,10 +324,16 @@ class OAuthSetupCLI {
     if (configureGlobal) {
       const apiKey = await this.question('Twenty API Key: ');
       const baseUrl = await this.question('Twenty Base URL (default: https://api.twenty.com): ');
-      
+      const resolvedBaseUrl = baseUrl || 'https://api.twenty.com';
+
+      // Twenty's UI host (default derived from the API host: api.twenty.com → app.twenty.com).
+      const defaultWebUrl = resolvedBaseUrl.replace(/^https?:\/\/api\./, (m) => m.replace('api.', 'app.'));
+      const webUrl = await this.question(`Twenty Web URL for record links (default: ${defaultWebUrl}): `);
+
       this.config.twentyApiKey = apiKey;
-      this.config.twentyBaseUrl = baseUrl || 'https://api.twenty.com';
-      
+      this.config.twentyBaseUrl = resolvedBaseUrl;
+      this.config.twentyWebUrl = webUrl || defaultWebUrl;
+
       console.log('\n✅ Global Twenty API configured successfully');
     } else {
       console.log('\nℹ️ Users will configure their own API keys when authenticated');
@@ -363,6 +370,7 @@ class OAuthSetupCLI {
       ['API_KEY_ENCRYPTION_SECRET', this.config.encryptionSecret],
       ['TWENTY_API_KEY', this.config.twentyApiKey],
       ['TWENTY_BASE_URL', this.config.twentyBaseUrl],
+      ['TWENTY_WEB_URL', this.config.twentyWebUrl],
       ['MCP_SERVER_URL', 'http://localhost:3000'],
       ['IP_PROTECTION_ENABLED', this.config.ipProtectionEnabled?.toString()],
       ['IP_ALLOWLIST', this.config.ipAllowlist?.join(',')],

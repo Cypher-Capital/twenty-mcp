@@ -26,16 +26,17 @@ export function registerActivityTools(server: McpServer, client: TwentyClient) {
         });
 
         const activitiesText = timeline.activities.map(activity => {
-          const authorName = activity.author 
+          const authorName = activity.author
             ? `${activity.author.name.firstName} ${activity.author.name.lastName}`
             : 'Unknown';
-          
+
           const createdDate = new Date(activity.createdAt).toLocaleDateString();
-          
+          const url = activity.id ? client.getRecordUrl(activity.type, activity.id) : '';
+
           return `[${activity.type.toUpperCase()}] ${activity.title || 'Untitled'} (${createdDate})
 Author: ${authorName}
 ${activity.body ? `Content: ${activity.body.substring(0, 200)}${activity.body.length > 200 ? '...' : ''}` : ''}
-ID: ${activity.id}
+ID: ${activity.id}${url ? `\nURL: ${url}` : ''}
 ---`;
         }).join('\n\n');
 
@@ -94,14 +95,16 @@ ${timeline.hasMore ? 'Use offset parameter to load more activities.' : 'No more 
         }
 
         const resultsText = activities.map((activity, index) => {
-          const authorName = activity.author 
+          const authorName = activity.author
             ? `${activity.author.name.firstName} ${activity.author.name.lastName}`
             : 'Unknown';
-          
+
+          const url = activity.id ? client.getRecordUrl(activity.type, activity.id) : '';
+
           return `${index + 1}. [${activity.type.toUpperCase()}] ${activity.title || 'Untitled'}
    Created: ${new Date(activity.createdAt).toLocaleString()}
    Author: ${authorName}
-   ID: ${activity.id}`;
+   ID: ${activity.id}${url ? `\n   URL: ${url}` : ''}`;
         }).join('\n\n');
 
         return {
@@ -147,13 +150,17 @@ ${resultsText}`
           ? `${comment.author.name.firstName} ${comment.author.name.lastName}`
           : 'Unknown';
 
+        const targetUrl = args.targetObjectType && args.targetObjectId
+          ? client.getRecordUrl(args.targetObjectType, args.targetObjectId)
+          : '';
+
         return {
           content: [{
             type: 'text' as const,
             text: `Comment created successfully by ${authorName} (ID: ${comment.id})
 
 Content: ${comment.body}
-Created: ${new Date(comment.createdAt).toLocaleString()}`
+Created: ${new Date(comment.createdAt).toLocaleString()}${targetUrl ? `\nTarget: ${targetUrl}` : ''}`
           }]
         };
       } catch (error) {
@@ -187,32 +194,36 @@ Created: ${new Date(comment.createdAt).toLocaleString()}`
           offset: args.offset,
         });
 
+        const entityUrl = client.getRecordUrl(args.entityType, args.entityId);
+
         if (timeline.activities.length === 0) {
           return {
             content: [{
               type: 'text' as const,
-              text: `No activities found for ${args.entityType} ${args.entityId}.`
+              text: `No activities found for ${args.entityType} ${args.entityId}.\nEntity URL: ${entityUrl}`
             }]
           };
         }
 
         const activitiesText = timeline.activities.map((activity, index) => {
-          const authorName = activity.author 
+          const authorName = activity.author
             ? `${activity.author.name.firstName} ${activity.author.name.lastName}`
             : 'Unknown';
-          
+
           const date = new Date(activity.createdAt);
-          
+          const url = activity.id ? client.getRecordUrl(activity.type, activity.id) : '';
+
           return `${index + 1}. [${activity.type.toUpperCase()}] ${activity.title || 'Untitled'}
    Created: ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}
    Author: ${authorName}
-   ${activity.body ? `Preview: ${activity.body.substring(0, 150)}${activity.body.length > 150 ? '...' : ''}` : ''}`;
+   ${activity.body ? `Preview: ${activity.body.substring(0, 150)}${activity.body.length > 150 ? '...' : ''}` : ''}${url ? `\n   URL: ${url}` : ''}`;
         }).join('\n\n');
 
         return {
           content: [{
             type: 'text' as const,
             text: `Activities for ${args.entityType} ${args.entityId} (${timeline.totalCount} total):
+Entity URL: ${entityUrl}
 
 ${activitiesText}
 
