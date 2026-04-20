@@ -460,6 +460,92 @@ export class TwentyClient {
     return { ...created, body: bodyV2?.markdown ?? '' };
   }
 
+  async searchNotes(query: string, options: SearchOptions = {}): Promise<Note[]> {
+    const searchQuery = `
+      query SearchNotes($filter: NoteFilterInput, $first: Int) {
+        notes(filter: $filter, first: $first, orderBy: { createdAt: DescNullsLast }) {
+          edges {
+            node {
+              id
+              title
+              bodyV2 { markdown }
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      }
+    `;
+
+    const filter = {
+      title: { ilike: `%${query}%` },
+    };
+
+    const result = await this.client.request(searchQuery, {
+      filter,
+      first: options.limit || 20,
+    }) as { notes: { edges: { node: Note & { bodyV2?: { markdown?: string } } }[] } };
+
+    return result.notes.edges.map(edge => {
+      const { bodyV2, ...rest } = edge.node;
+      return { ...rest, body: bodyV2?.markdown ?? '' };
+    });
+  }
+
+  async getNote(id: string): Promise<Note | null> {
+    const query = `
+      query GetNote($filter: NoteFilterInput) {
+        notes(filter: $filter, first: 1) {
+          edges {
+            node {
+              id
+              title
+              bodyV2 { markdown }
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await this.client.request(query, {
+      filter: { id: { eq: id } },
+    }) as { notes: { edges: { node: Note & { bodyV2?: { markdown?: string } } }[] } };
+
+    const edge = result.notes.edges[0];
+    if (!edge) return null;
+    const { bodyV2, ...rest } = edge.node;
+    return { ...rest, body: bodyV2?.markdown ?? '' };
+  }
+
+  async listNotes(options: SearchOptions = {}): Promise<Note[]> {
+    const query = `
+      query ListNotes($first: Int) {
+        notes(first: $first, orderBy: { createdAt: DescNullsLast }) {
+          edges {
+            node {
+              id
+              title
+              bodyV2 { markdown }
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await this.client.request(query, {
+      first: options.limit || 20,
+    }) as { notes: { edges: { node: Note & { bodyV2?: { markdown?: string } } }[] } };
+
+    return result.notes.edges.map(edge => {
+      const { bodyV2, ...rest } = edge.node;
+      return { ...rest, body: bodyV2?.markdown ?? '' };
+    });
+  }
+
   async createOpportunity(opportunity: CreateOpportunityInput): Promise<Opportunity> {
     const mutation = `
       mutation CreateOpportunity($data: OpportunityCreateInput!) {
