@@ -446,6 +446,97 @@ export function registerTaskTools(server: McpServer, client: TwentyClient) {
       };
     }
   });
+
+  server.tool(
+    'search_notes',
+    'Search for notes in Twenty CRM by title',
+    {
+      query: z.string().describe('Search query (matched against note title)'),
+      limit: z.number().optional().default(20).describe('Maximum number of results'),
+      offset: z.number().optional().default(0).describe('Number of results to skip'),
+    },
+    async (args) => {
+    try {
+      const notes = await client.searchNotes(args.query, {
+        limit: args.limit,
+        offset: args.offset,
+      });
+      const withUrls = notes.map((n) =>
+        n.id ? { ...n, url: client.getRecordUrl('note', n.id) } : n
+      );
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(withUrls, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `Error searching notes: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }]
+      };
+    }
+  });
+
+  server.tool(
+    'get_note',
+    'Retrieve a note by ID from Twenty CRM',
+    {
+      id: z.string().describe('Note ID to retrieve'),
+    },
+    async (args) => {
+    try {
+      const note = await client.getNote(args.id);
+      const withUrl = note ? { ...note, url: client.getRecordUrl('note', args.id) } : note;
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(withUrl, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `Error retrieving note: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }]
+      };
+    }
+  });
+
+  server.tool(
+    'list_notes',
+    'List most recent notes in Twenty CRM, newest first',
+    {
+      limit: z.number().optional().default(20).describe('Maximum number of results'),
+      offset: z.number().optional().default(0).describe('Number of results to skip'),
+    },
+    async (args) => {
+    try {
+      const notes = await client.listNotes({
+        limit: args.limit,
+        offset: args.offset,
+      });
+      const withUrls = notes.map((n) =>
+        n.id ? { ...n, url: client.getRecordUrl('note', n.id) } : n
+      );
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(withUrls, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `Error listing notes: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }]
+      };
+    }
+  });
 }
 
 export function registerRelationshipTools(server: McpServer, client: TwentyClient) {

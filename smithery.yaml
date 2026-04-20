@@ -37,7 +37,7 @@ configSchema:
 
 # MCP tools metadata
 tools:
-  count: 29
+  count: 32
   categories:
     - name: "Contact Management"
       tools: ["create_contact", "get_contact", "update_contact", "search_contacts"]
@@ -50,7 +50,7 @@ tools:
     - name: "Task Management"
       tools: ["create_task", "get_tasks"]
     - name: "Note Management"
-      tools: ["create_note"]
+      tools: ["create_note", "search_notes", "get_note", "list_notes"]
     - name: "Relationship Management"
       tools: ["get_company_contacts", "get_person_opportunities", "link_opportunity_to_company", "transfer_contact_to_company", "get_relationship_summary", "find_orphaned_records"]
     - name: "Metadata Discovery"
