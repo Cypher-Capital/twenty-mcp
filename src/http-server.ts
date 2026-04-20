@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { TwentyClient } from './client/twenty-client.js';
 import { registerPersonTools, registerCompanyTools, registerTaskTools, registerOpportunityTools } from './tools/index.js';
 import { WellKnownRoutes } from './routes/well-known.js';
@@ -34,7 +35,12 @@ async function main() {
     keyStorage = getKeyStorageService();
     apiKeyRoutes = new ApiKeyRoutes();
   }
-  
+
+  // Map of MCP session ID -> live transport. Sticky sessions are required by
+  // the Streamable HTTP spec: the initialize request creates a session, and
+  // follow-up calls (tools/list, tool invocations) reuse the same transport.
+  const transports: Record<string, StreamableHTTPServerTransport> = {};
+
   // Parse configuration from multiple sources
   async function parseConfig(url: string, userId?: string) {
     const urlObj = new URL(url, `http://localhost:${port}`);
@@ -147,97 +153,106 @@ async function main() {
           return; // Auth middleware already sent response
         }
       }
-      // Parse configuration from query parameters
-      const userId = authReq.auth?.userId;
-      const config = await parseConfig(req.url, userId);
-      
-      if (!config.apiKey) {
-        // If authenticated but no API key stored
-        if (authEnabled && userId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            error: 'No API key configured',
-            error_description: 'Please configure your Twenty API key first'
-          }));
-          return;
-        }
-        // For non-authenticated requests
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          error: 'Missing required apiKey parameter'
-        }));
-        return;
-      }
 
-      // Create MCP server with Twenty client
-      const server = new McpServer({
-        name: 'twenty-mcp-server',
-        version: '1.0.0',
-      }, {
-        capabilities: {
-          tools: {},
-          experimental: {
-            authentication: {
-              type: 'oauth2',
-              required: authEnabled && process.env.REQUIRE_AUTH === 'true',
-              enabled: authEnabled,
-              discoveryEndpoints: authEnabled ? {
-                protectedResource: '/.well-known/oauth-protected-resource',
-                authorizationServer: '/.well-known/oauth-authorization-server'
-              } : undefined
-            }
-          }
-        }
-      });
-
-      const client = new TwentyClient({
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl,
-      });
-
-      // Register tools
-      registerPersonTools(server, client);
-      registerCompanyTools(server, client);
-      registerTaskTools(server, client);
-      registerOpportunityTools(server, client);
-
-      // Create streamable HTTP transport
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-      });
-
-      // Connect server to transport
-      await server.connect(transport);
-
-      // Parse request body for POST requests
+      // Read the body up front on POST so we can detect initialize requests
+      // before deciding whether to reuse a session or create a new one.
       let body: any = undefined;
       if (req.method === 'POST') {
         const chunks: Buffer[] = [];
-        req.on('data', (chunk) => chunks.push(chunk));
-        req.on('end', async () => {
+        for await (const chunk of req) {
+          chunks.push(chunk as Buffer);
+        }
+        const bodyText = Buffer.concat(chunks).toString();
+        if (bodyText.trim()) {
           try {
-            const bodyText = Buffer.concat(chunks).toString();
-            if (bodyText.trim()) {
-              body = JSON.parse(bodyText);
-            }
-            await transport.handleRequest(req, res, body);
+            body = JSON.parse(bodyText);
           } catch (error) {
             console.error('Error parsing request body:', error);
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Invalid JSON in request body' }));
+            return;
           }
-        });
-      } else {
-        // Handle GET/DELETE requests
-        await transport.handleRequest(req, res, body);
+        }
       }
+
+      const sessionIdHeader = req.headers['mcp-session-id'];
+      const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+
+      let transport: StreamableHTTPServerTransport;
+
+      if (sessionId && transports[sessionId]) {
+        // Continue an existing MCP session.
+        transport = transports[sessionId];
+      } else if (!sessionId && req.method === 'POST' && isInitializeRequest(body)) {
+        // New session: validate config, build a server + tools, spin up a transport.
+        const userId = authReq.auth?.userId;
+        const config = await parseConfig(req.url!, userId);
+
+        if (!config.apiKey) {
+          if (authEnabled && userId) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              error: 'No API key configured',
+              error_description: 'Please configure your Twenty API key first',
+            }));
+            return;
+          }
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Missing required apiKey parameter' }));
+          return;
+        }
+
+        const server = new McpServer(
+          { name: 'twenty-mcp-server', version: '1.0.0' },
+          { capabilities: { tools: {} } },
+        );
+
+        const client = new TwentyClient({
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl,
+        });
+
+        registerPersonTools(server, client);
+        registerCompanyTools(server, client);
+        registerTaskTools(server, client);
+        registerOpportunityTools(server, client);
+
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (newSessionId: string) => {
+            transports[newSessionId] = transport;
+          },
+        });
+
+        transport.onclose = () => {
+          if (transport.sessionId) {
+            delete transports[transport.sessionId];
+          }
+        };
+
+        await server.connect(transport);
+      } else {
+        // Request references a session we don't have, or isn't an initialize.
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'Invalid MCP request',
+          error_description: sessionId
+            ? 'Unknown or expired session ID; send an initialize request to start a new session'
+            : 'Missing session ID; send an initialize request to start a new session',
+        }));
+        return;
+      }
+
+      await transport.handleRequest(req, res, body);
     } catch (error) {
       console.error('Error handling request:', error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      }));
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'Internal server error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }));
+      }
     }
   });
 
