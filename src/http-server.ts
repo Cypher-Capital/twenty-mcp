@@ -106,8 +106,13 @@ async function main() {
       return;
     }
     
-    // Handle OAuth discovery endpoints
-    if (req.url === '/.well-known/oauth-protected-resource') {
+    // Handle OAuth discovery endpoints.
+    // MCP clients following the Protected Resource Metadata spec fetch
+    // /.well-known/oauth-protected-resource/<resource-path> (e.g. .../mcp).
+    if (
+      req.url === '/.well-known/oauth-protected-resource' ||
+      req.url === '/.well-known/oauth-protected-resource/mcp'
+    ) {
       if (!authEnabled) {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
