@@ -3,11 +3,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { TwentyClient } from './client/twenty-client.js';
-import { registerPersonTools, registerCompanyTools, registerTaskTools, registerOpportunityTools, registerActivityTools, registerMetadataTools, registerRelationshipTools } from './tools/index.js';
+import { registerPersonTools, registerCompanyTools, registerTaskTools, registerOpportunityTools, registerActivityTools, registerMetadataTools, registerRelationshipTools, registerUrlTools } from './tools/index.js';
 
 async function main() {
   const apiKey = process.env.TWENTY_API_KEY;
   const baseUrl = process.env.TWENTY_BASE_URL;
+  const webUrl = process.env.TWENTY_WEB_URL;
 
   if (!apiKey) {
     console.error('TWENTY_API_KEY environment variable is required');
@@ -35,6 +36,7 @@ async function main() {
   const client = new TwentyClient({
     apiKey,
     baseUrl,
+    webUrl,
   });
 
   registerPersonTools(server, client);
@@ -44,6 +46,7 @@ async function main() {
   registerActivityTools(server, client);
   registerMetadataTools(server, client);
   registerRelationshipTools(server, client);
+  registerUrlTools(server, client);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

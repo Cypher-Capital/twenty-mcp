@@ -14,6 +14,7 @@ export interface TwentyMCPConfig {
   twenty: {
     apiKey?: string;
     baseUrl?: string;
+    webUrl?: string;
   };
   auth: {
     enabled: boolean;
@@ -161,10 +162,13 @@ export class ConfigManager {
     }
   }
 
-  public updateTwentyConfig(apiKey: string, baseUrl: string): void {
+  public updateTwentyConfig(apiKey: string, baseUrl: string, webUrl?: string): void {
     const config = this.load();
     config.twenty.apiKey = apiKey;
     config.twenty.baseUrl = baseUrl;
+    if (webUrl !== undefined) {
+      config.twenty.webUrl = webUrl;
+    }
     this.save(config);
     this.syncToEnv(config);
   }
@@ -207,6 +211,9 @@ export class ConfigManager {
     }
     if (configData.twenty.baseUrl) {
       envVars.set('TWENTY_BASE_URL', configData.twenty.baseUrl);
+    }
+    if (configData.twenty.webUrl) {
+      envVars.set('TWENTY_WEB_URL', configData.twenty.webUrl);
     }
 
     // Auth configuration
@@ -317,6 +324,9 @@ export class ConfigManager {
       }
       if (envVars.has('TWENTY_BASE_URL')) {
         config.twenty.baseUrl = envVars.get('TWENTY_BASE_URL');
+      }
+      if (envVars.has('TWENTY_WEB_URL')) {
+        config.twenty.webUrl = envVars.get('TWENTY_WEB_URL');
       }
 
       // Import auth configuration

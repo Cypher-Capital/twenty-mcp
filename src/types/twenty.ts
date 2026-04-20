@@ -1,6 +1,7 @@
 export interface TwentyConfig {
   apiKey: string;
   baseUrl?: string;
+  webUrl?: string;
 }
 
 export interface FullName {

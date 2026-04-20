@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { TwentyClient } from './client/twenty-client.js';
-import { registerPersonTools, registerCompanyTools, registerTaskTools, registerOpportunityTools } from './tools/index.js';
+import { registerPersonTools, registerCompanyTools, registerTaskTools, registerOpportunityTools, registerUrlTools } from './tools/index.js';
 import { WellKnownRoutes } from './routes/well-known.js';
 import { AuthMiddleware, AuthenticatedRequest } from './auth/middleware.js';
 import { TokenValidator } from './auth/token-validator.js';
@@ -49,7 +49,8 @@ async function main() {
     // Check for user-specific stored API key first
     let apiKey = params.get('apiKey');
     let baseUrl = params.get('baseUrl');
-    
+    let webUrl = params.get('webUrl');
+
     if (authEnabled && userId && !apiKey && keyStorage) {
       const storedKey = await keyStorage.getApiKey(userId);
       if (storedKey) {
@@ -57,18 +58,22 @@ async function main() {
         baseUrl = storedKey.twentyBaseUrl || baseUrl;
       }
     }
-    
+
     // Priority: URL params > User stored key > Environment variables > Smithery config
     return {
-      apiKey: apiKey || 
-              process.env.TWENTY_API_KEY || 
-              process.env.SMITHERY_CONFIG_APIKEY || 
+      apiKey: apiKey ||
+              process.env.TWENTY_API_KEY ||
+              process.env.SMITHERY_CONFIG_APIKEY ||
               process.env.apiKey,
-      baseUrl: baseUrl || 
-               process.env.TWENTY_BASE_URL || 
-               process.env.SMITHERY_CONFIG_BASEURL || 
+      baseUrl: baseUrl ||
+               process.env.TWENTY_BASE_URL ||
+               process.env.SMITHERY_CONFIG_BASEURL ||
                process.env.baseUrl ||
                'https://api.twenty.com',
+      webUrl: webUrl ||
+              process.env.TWENTY_WEB_URL ||
+              process.env.SMITHERY_CONFIG_WEBURL ||
+              undefined,
     };
   }
 
@@ -210,12 +215,14 @@ async function main() {
         const client = new TwentyClient({
           apiKey: config.apiKey,
           baseUrl: config.baseUrl,
+          webUrl: config.webUrl,
         });
 
         registerPersonTools(server, client);
         registerCompanyTools(server, client);
         registerTaskTools(server, client);
         registerOpportunityTools(server, client);
+        registerUrlTools(server, client);
 
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
